@@ -7,15 +7,36 @@ var render_distance: int = 2  # Reduced for better performance
 var player: Node3D
 var last_player_chunk: Vector3i = Vector3i(-999, -999, -999)
 var pending_chunks: Dictionary = {}  # Track chunks being generated
+var shared_material: StandardMaterial3D  # Shared material for all chunks
 
 func _ready():
-	# Create and configure chunk manager
+	# Create and configure chunk manager first
 	chunk_manager = ChunkManager.new()
 	add_child(chunk_manager)
 	chunk_manager.chunk_generated.connect(_on_chunk_generated)
+	
+	# Create shared material for all chunks
+	create_shared_material()
+	
+	# Start generation thread
 	chunk_manager.start_generation_thread()
 	
 	generate_initial_world()
+
+func create_shared_material():
+	shared_material = StandardMaterial3D.new()
+	
+	# Try to load the texture atlas
+	var atlas_texture = load("res://assets/textures/block_atlas.tres")
+	if atlas_texture:
+		shared_material.albedo_texture = atlas_texture
+	else:
+		# Fallback to vertex colors if no texture
+		shared_material.vertex_color_use_as_albedo = true
+	
+	shared_material.roughness = 1.0
+	shared_material.metallic = 0.0
+	shared_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST  # Pixel perfect filtering
 
 func generate_initial_world():
 	for x in range(-render_distance, render_distance + 1):
@@ -41,6 +62,7 @@ func _on_chunk_generated(chunk_data: Dictionary):
 	# Create the actual chunk node on main thread
 	var chunk = Chunk.new(chunk_pos)
 	chunk.blocks = chunk_data.blocks
+	chunk.shared_material = shared_material  # Pass shared material
 	add_child(chunk)
 	chunks[key] = chunk
 	

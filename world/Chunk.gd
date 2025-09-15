@@ -11,6 +11,7 @@ var collision_shape: CollisionShape3D
 var static_body: StaticBody3D
 var is_dirty: bool = true
 var material: StandardMaterial3D
+var shared_material: StandardMaterial3D  # Passed from World
 
 func _init(pos: Vector3i = Vector3i.ZERO):
 	chunk_position = pos
@@ -37,10 +38,15 @@ func _ready():
 	mesh_instance = MeshInstance3D.new()
 	add_child(mesh_instance)
 	
-	# Create shared material with vertex colors
-	material = StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0
+	# Use shared material if available, otherwise create own
+	if shared_material:
+		material = shared_material
+	else:
+		# Fallback: create own material
+		material = StandardMaterial3D.new()
+		material.vertex_color_use_as_albedo = true
+		material.roughness = 1.0
+		material.metallic = 0.0
 	
 	position = Vector3(chunk_position.x * CHUNK_SIZE, 0, chunk_position.z * CHUNK_SIZE)
 
@@ -61,10 +67,7 @@ func is_position_valid(pos: Vector3i) -> bool:
 
 func update_mesh():
 	if not is_dirty:
-		print("Chunk not dirty, skipping mesh update")
 		return
-	
-	print("Updating mesh for chunk at ", chunk_position)
 	
 	var arrays = []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -84,7 +87,6 @@ func update_mesh():
 					block_count += 1
 					add_block_to_mesh(Vector3i(x, y, z), block_type, vertices, normals, uvs, colors)
 	
-	print("Found ", block_count, " non-air blocks, generated ", vertices.size(), " vertices")
 	
 	if vertices.size() == 0:
 		if mesh_instance.mesh:
@@ -143,7 +145,6 @@ func apply_mesh_data(mesh_data: Dictionary):
 	if array_mesh:
 		collision_shape.shape = array_mesh.create_trimesh_shape()
 	
-	print("Applied pre-generated mesh with ", vertices.size(), " vertices to chunk ", chunk_position)
 
 func add_block_to_mesh(pos: Vector3i, block_type: Block.BlockType, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray):
 	var color = get_block_color(block_type)
@@ -152,29 +153,29 @@ func add_block_to_mesh(pos: Vector3i, block_type: Block.BlockType, vertices: Pac
 	# Check each face and add if visible
 	# Top face (Y+)
 	if should_draw_face(pos + Vector3i(0, 1, 0)):
-		add_face_to_mesh(block_pos, 0, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 0, block_type, "top", color, vertices, normals, uvs, colors)
 	
 	# Bottom face (Y-)
 	if should_draw_face(pos + Vector3i(0, -1, 0)):
-		add_face_to_mesh(block_pos, 1, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 1, block_type, "bottom", color, vertices, normals, uvs, colors)
 	
 	# Front face (Z+)
 	if should_draw_face(pos + Vector3i(0, 0, 1)):
-		add_face_to_mesh(block_pos, 2, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 2, block_type, "side", color, vertices, normals, uvs, colors)
 	
 	# Back face (Z-)
 	if should_draw_face(pos + Vector3i(0, 0, -1)):
-		add_face_to_mesh(block_pos, 3, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 3, block_type, "side", color, vertices, normals, uvs, colors)
 	
 	# Right face (X+)
 	if should_draw_face(pos + Vector3i(1, 0, 0)):
-		add_face_to_mesh(block_pos, 4, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 4, block_type, "side", color, vertices, normals, uvs, colors)
 	
 	# Left face (X-)
 	if should_draw_face(pos + Vector3i(-1, 0, 0)):
-		add_face_to_mesh(block_pos, 5, color, vertices, normals, uvs, colors)
+		add_face_to_mesh(block_pos, 5, block_type, "side", color, vertices, normals, uvs, colors)
 
-func add_face_to_mesh(block_pos: Vector3, face: int, color: Color, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray):
+func add_face_to_mesh(block_pos: Vector3, face: int, block_type: Block.BlockType, face_name: String, color: Color, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray):
 	var face_vertices = []
 	var face_normal = Vector3.ZERO
 	
@@ -228,7 +229,13 @@ func add_face_to_mesh(block_pos: Vector3, face: int, color: Color, vertices: Pac
 			]
 			face_normal = Vector3.LEFT
 	
-	var face_uvs = [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
+	# Get correct UV coordinates from texture atlas (static instance)
+	var atlas = BlockTextureAtlas.new()
+	var face_uvs = atlas.get_block_uv_corners(block_type, face_name)
+	
+	# Fallback if no UV found
+	if face_uvs.size() != 4:
+		face_uvs = [Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Vector2(0, 0)]
 	
 	# Add two triangles for the quad
 	# First triangle: 0, 1, 2

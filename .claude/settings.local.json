@@ -3,7 +3,9 @@
     "allow": [
       "Bash(godot:*)",
       "WebFetch(domain:godotengine.org)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(python3:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
