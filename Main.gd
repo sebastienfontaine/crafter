@@ -27,6 +27,7 @@ func _ready():
 	var render_distance = 2  # Should match World's render_distance
 	var total_chunks = (render_distance * 2 + 1) * (render_distance * 2 + 1)
 	loading_screen.start_loading(total_chunks)
+	loading_screen.visible = true
 	
 	# Start world generation asynchronously
 	start_world_generation()
@@ -64,7 +65,7 @@ func _on_chunk_generation_progress(chunks_loaded: int, total_chunks: int):
 func _on_loading_complete():
 	# Hide loading screen and finish initialization
 	if loading_screen:
-		loading_screen.hide_loading()
+		loading_screen.visible = false
 	
 	_finish_initialization()
 
