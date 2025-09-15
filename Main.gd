@@ -75,21 +75,44 @@ func _finish_initialization():
 	
 	# Create sun light
 	sun_light = DirectionalLight3D.new()
-	sun_light.rotation_degrees = Vector3(-45, -45, 0)
-	sun_light.light_energy = 1.0
+	sun_light.rotation_degrees = Vector3(-35, -135, 0)  # Better sun angle
+	sun_light.light_energy = 1.2  # Slightly brighter
+	sun_light.light_color = Color(1.0, 0.95, 0.8)  # Warm sunlight
 	sun_light.shadow_enabled = true
+	sun_light.shadow_opacity = 0.75  # Softer shadows
 	add_child(sun_light)
 	
 	# Add ambient light with WorldEnvironment node
 	var world_env = WorldEnvironment.new()
 	var env = Environment.new()
 	env.background_mode = Environment.BG_SKY
+	
+	# Create a beautiful blue sky
 	env.sky = Sky.new()
-	env.sky.sky_material = ProceduralSkyMaterial.new()
+	var sky_material = ProceduralSkyMaterial.new()
+	
+	# Beautiful blue sky colors (Minecraft-like)
+	sky_material.sky_top_color = Color(0.35, 0.65, 1.0)  # Light blue at top
+	sky_material.sky_horizon_color = Color(0.6, 0.8, 1.0)  # Lighter blue at horizon
+	sky_material.ground_bottom_color = Color(0.4, 0.5, 0.3)  # Greenish ground
+	sky_material.ground_horizon_color = Color(0.6, 0.7, 0.8)  # Light ground horizon
+	
+	# Sun settings
+	sky_material.sun_angle_max = 30.0
+	sky_material.sun_curve = 0.15
+	env.sky.sky_material = sky_material
+	
+	# Ambient lighting from sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.3
+	env.ambient_light_energy = 0.4
+	env.ambient_light_sky_contribution = 1.0
+	env.ambient_light_color = Color(0.8, 0.9, 1.0)  # Slight blue tint
+	
+	# Fog settings (more subtle)
 	env.fog_enabled = true
-	env.fog_density = 0.005
+	env.fog_light_color = Color(0.7, 0.85, 1.0)  # Blue-ish fog
+	env.fog_density = 0.003  # Less dense fog
+	env.fog_sun_scatter = 0.1
 	
 	world_env.environment = env
 	add_child(world_env)
