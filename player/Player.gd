@@ -4,7 +4,7 @@ extends CharacterBody3D
 const SPEED = 4.5
 const JUMP_VELOCITY = 6  # Just enough to jump 1 block (1 meter)
 const MOUSE_SENSITIVITY = 0.002
-const REACH_DISTANCE = 5.0
+const REACH_DISTANCE = 3.0
 const ACCELERATION = 10.0  # For snappier movement
 const FRICTION = 10.0  # For quicker stops
 

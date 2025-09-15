@@ -3,6 +3,8 @@ extends Node3D
 var world: World
 var player: Player
 var sun_light: DirectionalLight3D
+var coords_indicator: Label
+var fps_indicator: Label
 
 func _ready():
 	# Force regenerate texture atlas with new UV settings
@@ -84,6 +86,24 @@ Left Click: Break Block | Right Click: Place Block
 	block_indicator.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	block_indicator.position = Vector2(10, -40)
 	canvas_layer.add_child(block_indicator)
+	
+	# Player coordinates indicator
+	coords_indicator = Label.new()
+	coords_indicator.name = "CoordsIndicator"
+	coords_indicator.text = "X: 0 Y: 0 Z: 0"
+	coords_indicator.add_theme_font_size_override("font_size", 14)
+	coords_indicator.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	coords_indicator.position = Vector2(-120, 10)
+	canvas_layer.add_child(coords_indicator)
+	
+	# FPS indicator
+	fps_indicator = Label.new()
+	fps_indicator.name = "FPSIndicator"
+	fps_indicator.text = "FPS: 60"
+	fps_indicator.add_theme_font_size_override("font_size", 16)
+	fps_indicator.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	fps_indicator.position = Vector2(-80, 35)
+	canvas_layer.add_child(fps_indicator)
 
 func _process(_delta):
 	# Update block indicator
@@ -92,6 +112,15 @@ func _process(_delta):
 		if indicator:
 			var block = Block.new(player.selected_block_type)
 			indicator.text = "Selected: " + block.block_name
+	
+	# Update player coordinates indicator  
+	if coords_indicator and player:
+		var pos = player.global_position
+		coords_indicator.text = "X: " + str(snapped(pos.x, 0.1)) + " Y: " + str(snapped(pos.y, 0.1)) + " Z: " + str(snapped(pos.z, 0.1))
+	
+	# Update FPS indicator
+	if fps_indicator:
+		fps_indicator.text = "FPS: " + str(Engine.get_frames_per_second())
 	
 	# Update chunks around player
 	if world and player:
