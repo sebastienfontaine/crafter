@@ -15,6 +15,9 @@ var world: World
 var selected_block_type: Block.BlockType = Block.BlockType.DIRT
 var block_highlight: MeshInstance3D
 var can_place_block: bool = true
+var inventory: Inventory
+var inventory_ui: InventoryUI
+var hotbar: Hotbar
 
 func _ready():
 	# Create collision shape for the player
@@ -44,6 +47,36 @@ func _ready():
 	
 	# Create block highlight
 	create_block_highlight()
+	
+	# Initialize inventory
+	inventory = Inventory.new()
+	inventory_ui = InventoryUI.new()
+	hotbar = Hotbar.new()
+	
+	# Add some initial items for testing
+	inventory.add_item(Block.BlockType.DIRT, 10)
+	inventory.add_item(Block.BlockType.STONE, 5)
+	inventory.add_item(Block.BlockType.WOOD, 3)
+	
+	# Connect inventory UI signals
+	inventory_ui.slot_clicked.connect(_on_inventory_slot_clicked)
+	inventory_ui.close_requested.connect(_on_inventory_closed)
+	inventory_ui.item_dragged.connect(_on_inventory_item_dragged)
+	
+	# Connect hotbar signals
+	hotbar.slot_selected.connect(_on_hotbar_slot_selected)
+	hotbar.item_changed.connect(_on_hotbar_item_changed)
+	hotbar.item_dropped_to_inventory.connect(_on_hotbar_item_dropped_to_inventory)
+	
+	# Wait for next frame to ensure UI is ready before setup
+	await get_tree().process_frame
+	inventory_ui.setup_inventory(inventory)
+	
+	# Add inventory UI to the scene
+	setup_inventory_ui_in_scene()
+	
+	# Add hotbar to the scene
+	setup_hotbar_in_scene()
 	
 	# Capture mouse
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -122,13 +155,10 @@ func _input(event):
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			place_block()
 	
-	# Block selection with number keys
+	# Inventory toggle
 	if event is InputEventKey and event.pressed:
-		if event.keycode >= KEY_1 and event.keycode <= KEY_7:
-			var index = event.keycode - KEY_1 + 1
-			if index < Block.BlockType.size():
-				selected_block_type = index
-				print("Selected block: ", Block.new(selected_block_type).block_name)
+		if event.keycode == KEY_I:
+			toggle_inventory()
 
 func update_block_interaction():
 	if not world:
@@ -161,8 +191,13 @@ func destroy_block():
 	
 	var target_block = find_target_block()
 	if target_block.has("position"):
-		print("Destroying block at: ", target_block.position, " type: ", target_block.type)
+		var block_type = target_block.type
+		print("Destroying block at: ", target_block.position, " type: ", block_type)
 		world.set_block_at_world_position(target_block.position, Block.BlockType.AIR)
+		
+		# Add destroyed block to inventory
+		if block_type != Block.BlockType.AIR:
+			add_item_to_inventory(block_type, 1)
 	else:
 		print("No block found to destroy")
 
@@ -204,8 +239,20 @@ func place_block():
 		
 		# Can't place where the player is standing
 		if place_pos != Vector3(player_block_pos) and place_pos != Vector3(player_head_pos):
-			print("Placing block at: ", place_pos, " type: ", Block.new(selected_block_type).block_name)
-			world.set_block_at_world_position(place_pos, selected_block_type)
+			# Check if player has the block in hotbar
+			var selected_item = hotbar.get_selected_item()
+			if selected_item != null and not selected_item.is_empty():
+				print("Placing block at: ", place_pos, " type: ", Block.new(selected_item.block_type).block_name)
+				world.set_block_at_world_position(place_pos, selected_item.block_type)
+				
+				# Remove block from hotbar
+				selected_item.quantity -= 1
+				if selected_item.quantity <= 0:
+					hotbar.set_item(hotbar.selected_slot, null)
+				else:
+					hotbar.update_slot_display(hotbar.selected_slot)
+			else:
+				print("No item in selected hotbar slot!")
 
 func find_target_block_with_face() -> Dictionary:
 	var start = camera.global_position
@@ -233,3 +280,84 @@ func find_target_block_with_face() -> Dictionary:
 		previous_pos = current_pos
 	
 	return {}
+
+func toggle_inventory():
+	inventory_ui.toggle()
+
+func _on_inventory_slot_clicked(slot_index: int):
+	var item = inventory.get_item(slot_index)
+	if item != null and not item.is_empty():
+		selected_block_type = item.block_type
+		print("Selected from inventory: ", item.get_block_name())
+
+func _on_inventory_closed():
+	# Called when inventory is closed
+	pass
+
+func add_item_to_inventory(block_type: Block.BlockType, quantity: int = 1):
+	return inventory.add_item(block_type, quantity)
+
+func setup_hotbar_in_scene():
+	# Find the Main node and add hotbar to its canvas layer
+	var main_node = get_tree().get_first_node_in_group("main")
+	if main_node == null:
+		var current = get_parent()
+		while current != null:
+			if current.has_method("create_ui"):
+				main_node = current
+				break
+			current = current.get_parent()
+	
+	if main_node and main_node.has_method("get") and main_node.canvas_layer:
+		main_node.canvas_layer.add_child(hotbar)
+		print("Hotbar added to canvas layer")
+
+func _on_hotbar_slot_selected(slot_index: int):
+	var item = hotbar.get_item(slot_index)
+	if item != null and not item.is_empty():
+		selected_block_type = item.block_type
+		print("Selected from hotbar: ", item.get_block_name())
+	else:
+		# If empty slot, keep current selection but update to show it's empty
+		print("Empty hotbar slot selected")
+
+func _on_hotbar_item_changed(slot_index: int, item: InventoryItem):
+	# Update selection if this is the current slot
+	if slot_index == hotbar.selected_slot:
+		_on_hotbar_slot_selected(slot_index)
+
+func _on_inventory_item_dragged(from_slot: int, item: InventoryItem):
+	# Try to add item to hotbar
+	if hotbar.try_add_item_from_inventory(item):
+		# Remove one item from inventory
+		inventory.remove_item(from_slot, 1)
+		inventory_ui.update_display()
+		print("Moved item from inventory to hotbar")
+	else:
+		print("Hotbar is full!")
+
+func _on_hotbar_item_dropped_to_inventory(slot_index: int, item: InventoryItem):
+	# Add item back to inventory
+	if inventory.add_item(item.block_type, item.quantity):
+		inventory_ui.update_display()
+		print("Moved item from hotbar to inventory")
+	else:
+		# If inventory is full, keep in hotbar
+		hotbar.set_item(slot_index, item)
+		print("Inventory is full!")
+
+func setup_inventory_ui_in_scene():
+	# Find the Main node and add inventory UI to its canvas layer
+	var main_node = get_tree().get_first_node_in_group("main")
+	if main_node == null:
+		# Try to find Main by going up the tree
+		var current = get_parent()
+		while current != null:
+			if current.has_method("create_ui"):  # Main has create_ui method
+				main_node = current
+				break
+			current = current.get_parent()
+	
+	if main_node and main_node.has_method("get") and main_node.canvas_layer:
+		main_node.canvas_layer.add_child(inventory_ui)
+		print("Inventory UI added to canvas layer")

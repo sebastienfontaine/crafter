@@ -5,6 +5,7 @@ var player: Player
 var sun_light: DirectionalLight3D
 var coords_indicator: Label
 var fps_indicator: Label
+var canvas_layer: CanvasLayer
 
 func _ready():
 	# Force regenerate texture atlas with new UV settings
@@ -47,9 +48,11 @@ func _ready():
 	
 	# Create UI
 	create_ui()
+	
+	# Add inventory UI will be done after player is fully initialized
 
 func create_ui():
-	var canvas_layer = CanvasLayer.new()
+	canvas_layer = CanvasLayer.new()
 	add_child(canvas_layer)
 	
 	# Crosshair
