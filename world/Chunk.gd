@@ -78,14 +78,20 @@ func update_mesh():
 	var colors = PackedColorArray()
 	
 	var block_count = 0
-	# Generate mesh data
+	var faces_count = 0
+	# Generate mesh data - optimize by checking if block is completely surrounded
 	for x in CHUNK_SIZE:
 		for y in CHUNK_HEIGHT:
 			for z in CHUNK_SIZE:
 				var block_type = blocks[x][y][z]
 				if block_type != Block.BlockType.AIR:
+					# Check if block is completely surrounded (optimization)
+					if is_block_hidden(Vector3i(x, y, z)):
+						continue  # Skip this block, it's not visible
+					
 					block_count += 1
-					add_block_to_mesh(Vector3i(x, y, z), block_type, vertices, normals, uvs, colors)
+					var faces_added = add_block_to_mesh(Vector3i(x, y, z), block_type, vertices, normals, uvs, colors)
+					faces_count += faces_added
 	
 	
 	if vertices.size() == 0:
@@ -146,34 +152,43 @@ func apply_mesh_data(mesh_data: Dictionary):
 		collision_shape.shape = array_mesh.create_trimesh_shape()
 	
 
-func add_block_to_mesh(pos: Vector3i, block_type: Block.BlockType, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray):
+func add_block_to_mesh(pos: Vector3i, block_type: Block.BlockType, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray) -> int:
 	var color = get_block_color(block_type)
 	var block_pos = Vector3(pos)
+	var faces_added = 0
 	
 	# Check each face and add if visible
 	# Top face (Y+)
 	if should_draw_face(pos + Vector3i(0, 1, 0)):
 		add_face_to_mesh(block_pos, 0, block_type, "top", color, vertices, normals, uvs, colors)
+		faces_added += 1
 	
 	# Bottom face (Y-)
 	if should_draw_face(pos + Vector3i(0, -1, 0)):
 		add_face_to_mesh(block_pos, 1, block_type, "bottom", color, vertices, normals, uvs, colors)
+		faces_added += 1
 	
 	# Front face (Z+)
 	if should_draw_face(pos + Vector3i(0, 0, 1)):
 		add_face_to_mesh(block_pos, 2, block_type, "side", color, vertices, normals, uvs, colors)
+		faces_added += 1
 	
 	# Back face (Z-)
 	if should_draw_face(pos + Vector3i(0, 0, -1)):
 		add_face_to_mesh(block_pos, 3, block_type, "side", color, vertices, normals, uvs, colors)
+		faces_added += 1
 	
 	# Right face (X+)
 	if should_draw_face(pos + Vector3i(1, 0, 0)):
 		add_face_to_mesh(block_pos, 4, block_type, "side", color, vertices, normals, uvs, colors)
+		faces_added += 1
 	
 	# Left face (X-)
 	if should_draw_face(pos + Vector3i(-1, 0, 0)):
 		add_face_to_mesh(block_pos, 5, block_type, "side", color, vertices, normals, uvs, colors)
+		faces_added += 1
+	
+	return faces_added
 
 func add_face_to_mesh(block_pos: Vector3, face: int, block_type: Block.BlockType, face_name: String, color: Color, vertices: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVector2Array, colors: PackedColorArray):
 	var face_vertices = []
@@ -258,6 +273,35 @@ func should_draw_face(neighbor_pos: Vector3i) -> bool:
 	
 	var neighbor_block = get_block(neighbor_pos)
 	return BlockRegistry.is_transparent(neighbor_block)
+
+func is_block_hidden(pos: Vector3i) -> bool:
+	# Check if a block is completely surrounded by opaque blocks
+	# This is a major optimization for underground areas
+	
+	# Check all 6 faces
+	var directions = [
+		Vector3i(0, 1, 0),   # Top
+		Vector3i(0, -1, 0),  # Bottom
+		Vector3i(1, 0, 0),   # Right
+		Vector3i(-1, 0, 0),  # Left
+		Vector3i(0, 0, 1),   # Front
+		Vector3i(0, 0, -1)   # Back
+	]
+	
+	for dir in directions:
+		var neighbor_pos = pos + dir
+		
+		# If at edge of chunk, assume not hidden
+		if not is_position_valid(neighbor_pos):
+			return false
+		
+		var neighbor_block = get_block(neighbor_pos)
+		# If any neighbor is transparent (including air), block is visible
+		if BlockRegistry.is_transparent(neighbor_block):
+			return false
+	
+	# All neighbors are opaque, block is hidden
+	return true
 
 func get_block_color(block_type: Block.BlockType) -> Color:
 	match block_type:

@@ -202,9 +202,18 @@ func update_chunks_around_player():
 		if distance > render_distance + 1:
 			chunks_to_unload.append(chunk.chunk_position)
 		else:
-			# Apply frustum culling to visible chunks
+			# Apply frustum culling and LOD to visible chunks
 			var should_be_visible = is_chunk_in_frustum(chunk.chunk_position)
 			chunk.visible = should_be_visible
+			
+			# Apply simple LOD (Level of Detail) based on distance
+			if should_be_visible and chunk.mesh_instance:
+				if distance > render_distance * 0.75:
+					# Far chunks: reduce visual quality
+					chunk.mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				else:
+					# Near chunks: full quality
+					chunk.mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	
 	for chunk_pos in chunks_to_unload:
 		unload_chunk(chunk_pos)

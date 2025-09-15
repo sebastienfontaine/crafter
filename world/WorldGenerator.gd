@@ -57,13 +57,14 @@ func generate_chunk(chunk: Chunk):
 			for y in range(5, 45):  # Cave generation depth
 				var cave_value = cave_noise.get_noise_3d(world_x * 0.05, y * 0.05, world_z * 0.05)
 				
-				if cave_value > 0.3:  # Cave threshold
+				# Higher threshold = fewer but larger caves (optimization)
+				if cave_value > 0.4:  # Increased threshold for fewer caves
 					chunk.set_block(Vector3i(x, y, z), Block.BlockType.AIR)
 					
-					# Try to place crystals on cave walls
-					if cave_value > 0.35 and y > 0:
+					# Try to place crystals on cave walls - reduced frequency
+					if cave_value > 0.45 and y > 0 and randf() < 0.1:  # Only 10% chance
 						var crystal_chance = crystal_noise.get_noise_3d(world_x * 0.1, y * 0.1, world_z * 0.1)
-						if crystal_chance > 0.7:  # Crystal spawn threshold
+						if crystal_chance > 0.8:  # Higher threshold for rarer crystals
 							var crystal_type = _get_crystal_for_depth(y)
 							# Check if there's a solid block below (floor crystal)
 							if y > 0 and chunk.get_block(Vector3i(x, y-1, z)) != Block.BlockType.AIR:
