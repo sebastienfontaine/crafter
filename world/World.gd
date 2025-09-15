@@ -1,6 +1,8 @@
 class_name World
 extends Node3D
 
+signal chunk_generation_progress(chunks_loaded: int, total_chunks: int)
+
 var chunks: Dictionary = {}
 var chunk_manager: ChunkManager
 var render_distance: int = 2  # Reduced for better performance
@@ -190,13 +192,99 @@ func update_chunks_around_player():
 			var chunk_pos = player_chunk + Vector3i(x, 0, z)
 			load_chunk(chunk_pos)
 	
-	# Unload far chunks
+	# Update chunk visibility and unload far chunks
 	var chunks_to_unload = []
 	for key in chunks:
 		var chunk = chunks[key]
 		var distance = Vector3(chunk.chunk_position).distance_to(Vector3(player_chunk))
+		
+		# Unload chunks that are too far away
 		if distance > render_distance + 1:
 			chunks_to_unload.append(chunk.chunk_position)
+		else:
+			# Apply frustum culling to visible chunks
+			var should_be_visible = is_chunk_in_frustum(chunk.chunk_position)
+			chunk.visible = should_be_visible
 	
 	for chunk_pos in chunks_to_unload:
 		unload_chunk(chunk_pos)
+
+func generate_chunks_around_position_async(position: Vector3):
+	var player_chunk = world_to_chunk_position(position)
+	
+	# Calculate total chunks to generate
+	var total_chunks = (render_distance * 2 + 1) * (render_distance * 2 + 1)
+	var chunks_loaded = 0
+	
+	# Generate chunks in order of distance (closest first)
+	var chunk_positions = []
+	for x in range(-render_distance, render_distance + 1):
+		for z in range(-render_distance, render_distance + 1):
+			chunk_positions.append(player_chunk + Vector3i(x, 0, z))
+	
+	# Sort by distance from player
+	chunk_positions.sort_custom(func(a, b): 
+		return Vector3(a).distance_to(Vector3(player_chunk)) < Vector3(b).distance_to(Vector3(player_chunk))
+	)
+	
+	# Generate chunks with progress updates
+	for chunk_pos in chunk_positions:
+		load_chunk(chunk_pos)
+		
+		# Wait for chunk to be generated
+		while chunk_key(chunk_pos) in pending_chunks:
+			await get_tree().process_frame
+		
+		chunks_loaded += 1
+		chunk_generation_progress.emit(chunks_loaded, total_chunks)
+		
+		# Small delay to prevent freezing
+		await get_tree().process_frame
+
+func is_chunk_in_frustum(chunk_pos: Vector3i) -> bool:
+	if not player or not player.camera:
+		return true  # Always render if no camera
+	
+	var camera = player.camera
+	var chunk_world_pos = Vector3(chunk_pos.x * Chunk.CHUNK_SIZE + Chunk.CHUNK_SIZE/2, 
+								  Chunk.CHUNK_HEIGHT/2, 
+								  chunk_pos.z * Chunk.CHUNK_SIZE + Chunk.CHUNK_SIZE/2)
+	
+	# Always render chunks very close to player (prevent popping)
+	var player_chunk = world_to_chunk_position(player.global_position)
+	var distance_to_player = Vector3(chunk_pos).distance_to(Vector3(player_chunk))
+	if distance_to_player <= 1.5:  # Always render chunks within 1.5 chunk distance
+		return true
+	
+	# Get camera frustum planes
+	var frustum = camera.get_frustum()
+	
+	# Create chunk bounding box (AABB)
+	var chunk_size = Vector3(Chunk.CHUNK_SIZE, Chunk.CHUNK_HEIGHT, Chunk.CHUNK_SIZE)
+	var chunk_min = chunk_world_pos - chunk_size * 0.5
+	var chunk_max = chunk_world_pos + chunk_size * 0.5
+	
+	# Test against each frustum plane
+	for plane in frustum:
+		# Check if all 8 corners of the AABB are on the negative side of the plane
+		var corners = [
+			chunk_min,
+			Vector3(chunk_max.x, chunk_min.y, chunk_min.z),
+			Vector3(chunk_min.x, chunk_max.y, chunk_min.z),
+			Vector3(chunk_min.x, chunk_min.y, chunk_max.z),
+			Vector3(chunk_max.x, chunk_max.y, chunk_min.z),
+			Vector3(chunk_max.x, chunk_min.y, chunk_max.z),
+			Vector3(chunk_min.x, chunk_max.y, chunk_max.z),
+			chunk_max
+		]
+		
+		var all_outside = true
+		for corner in corners:
+			if plane.distance_to(corner) >= 0:  # Point is on positive side of plane
+				all_outside = false
+				break
+		
+		if all_outside:
+			return false  # Chunk is completely outside this plane
+	
+	return true  # Chunk is at least partially inside frustum

@@ -6,6 +6,7 @@ var sun_light: DirectionalLight3D
 var coords_indicator: Label
 var fps_indicator: Label
 var canvas_layer: CanvasLayer
+var loading_screen: LoadingScreen
 
 func _ready():
 	# Force regenerate texture atlas with new UV settings
@@ -14,15 +15,61 @@ func _ready():
 	# Wait a frame to ensure atlas is properly saved
 	await get_tree().process_frame
 	
+	# Create and show loading screen first
+	canvas_layer = CanvasLayer.new()
+	add_child(canvas_layer)
+	
+	loading_screen = LoadingScreen.new()
+	canvas_layer.add_child(loading_screen)
+	loading_screen.loading_complete.connect(_on_loading_complete)
+	
+	# Calculate total chunks to show in progress
+	var render_distance = 2  # Should match World's render_distance
+	var total_chunks = (render_distance * 2 + 1) * (render_distance * 2 + 1)
+	loading_screen.start_loading(total_chunks)
+	
+	# Start world generation asynchronously
+	start_world_generation()
+
+func start_world_generation():
 	# Create world
 	world = World.new()
 	add_child(world)
 	
-	# Create player
+	# Calculate spawn position with proper terrain height
+	var spawn_x = 8.0
+	var spawn_z = 8.0
+	var terrain_height = world.chunk_manager.world_generator.get_terrain_height(spawn_x, spawn_z)
+	var spawn_position = Vector3(spawn_x, terrain_height + 2, spawn_z)
+	
+	# Create player but don't add to world yet
 	player = Player.new()
-	player.position = Vector3(8, 60, 8)  # Start in middle of a chunk, high enough
+	player.position = spawn_position
 	player.world = world
+	# Don't set world.player yet to avoid infinite loops
+	
+	# Connect progress signal
+	world.chunk_generation_progress.connect(_on_chunk_generation_progress)
+	
+	# Generate initial chunks around spawn
+	await world.generate_chunks_around_position_async(spawn_position)
+	
+	# Now set the player reference after generation is complete
 	world.player = player
+
+func _on_chunk_generation_progress(chunks_loaded: int, total_chunks: int):
+	if loading_screen:
+		loading_screen.update_chunk_progress(chunks_loaded)
+
+func _on_loading_complete():
+	# Hide loading screen and finish initialization
+	if loading_screen:
+		loading_screen.hide_loading()
+	
+	_finish_initialization()
+
+func _finish_initialization():
+	# Add player to scene
 	add_child(player)
 	
 	# Create sun light
@@ -46,14 +93,11 @@ func _ready():
 	world_env.environment = env
 	add_child(world_env)
 	
-	# Create UI
+	# Create UI (reuse the existing canvas_layer)
 	create_ui()
-	
-	# Add inventory UI will be done after player is fully initialized
 
 func create_ui():
-	canvas_layer = CanvasLayer.new()
-	add_child(canvas_layer)
+	# Canvas layer already exists from loading screen, just reuse it
 	
 	# Crosshair
 	var crosshair = Control.new()

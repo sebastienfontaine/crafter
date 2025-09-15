@@ -10,7 +10,8 @@
       "Bash(git push:*)",
       "Bash(git stash pop:*)",
       "Bash(git stash show:*)",
-      "Bash(/Applications/Godot.app/Contents/MacOS/Godot --headless --check-only world/World.gd)"
+      "Bash(/Applications/Godot.app/Contents/MacOS/Godot --headless --check-only world/World.gd)",
+      "Bash(git stash drop:*)"
     ],
     "deny": [],
     "ask": []
