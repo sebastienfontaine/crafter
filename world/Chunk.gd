@@ -273,5 +273,22 @@ func get_block_color(block_type: Block.BlockType) -> Color:
 			return Color(0.6, 0.4, 0.2)
 		Block.BlockType.LEAVES:
 			return Color(0.1, 0.5, 0.1)
+		# Crystal colors with glow effect
+		Block.BlockType.CRYSTAL_ENERGY:
+			return Color(0.4, 0.8, 1.0, 0.9)  # Light blue
+		Block.BlockType.CRYSTAL_FIRE:
+			return Color(1.0, 0.4, 0.2, 0.9)  # Orange-red
+		Block.BlockType.CRYSTAL_WATER:
+			return Color(0.2, 0.9, 1.0, 0.9)  # Cyan
+		Block.BlockType.CRYSTAL_EARTH:
+			return Color(0.7, 0.5, 0.3, 0.9)  # Brown
+		Block.BlockType.CRYSTAL_AIR:
+			return Color(0.95, 1.0, 1.0, 0.7)  # White
+		Block.BlockType.CRYSTAL_VOID:
+			return Color(0.5, 0.2, 0.8, 0.95)  # Purple
+		Block.BlockType.CRYSTAL_SOLAR:
+			return Color(1.0, 0.95, 0.5, 0.85)  # Golden
+		Block.BlockType.CRYSTAL_LUNAR:
+			return Color(0.9, 0.9, 1.0, 0.85)  # Silver
 		_:
 			return Color.WHITE

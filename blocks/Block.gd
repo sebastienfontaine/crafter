@@ -8,7 +8,16 @@ enum BlockType {
 	STONE,
 	SAND,
 	WOOD,
-	LEAVES
+	LEAVES,
+	# Crystal blocks
+	CRYSTAL_ENERGY,
+	CRYSTAL_FIRE,
+	CRYSTAL_WATER,
+	CRYSTAL_EARTH,
+	CRYSTAL_AIR,
+	CRYSTAL_VOID,
+	CRYSTAL_SOLAR,
+	CRYSTAL_LUNAR
 }
 
 @export var id: BlockType = BlockType.AIR
@@ -53,6 +62,39 @@ func setup_block_properties():
 			block_name = "Leaves"
 			is_solid = true
 			is_transparent = false
+		# Crystal blocks
+		BlockType.CRYSTAL_ENERGY:
+			block_name = "Energy Crystal"
+			is_solid = true
+			is_transparent = true  # Crystals are semi-transparent
+		BlockType.CRYSTAL_FIRE:
+			block_name = "Fire Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_WATER:
+			block_name = "Water Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_EARTH:
+			block_name = "Earth Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_AIR:
+			block_name = "Air Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_VOID:
+			block_name = "Void Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_SOLAR:
+			block_name = "Solar Crystal"
+			is_solid = true
+			is_transparent = true
+		BlockType.CRYSTAL_LUNAR:
+			block_name = "Lunar Crystal"
+			is_solid = true
+			is_transparent = true
 
 func get_texture_for_face(face: int) -> Texture2D:
 	if id == BlockType.GRASS:

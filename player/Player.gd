@@ -57,6 +57,10 @@ func _ready():
 	inventory.add_item(Block.BlockType.DIRT, 10)
 	inventory.add_item(Block.BlockType.STONE, 5)
 	inventory.add_item(Block.BlockType.WOOD, 3)
+	# Add some crystals for testing
+	inventory.add_item(Block.BlockType.CRYSTAL_ENERGY, 2)
+	inventory.add_item(Block.BlockType.CRYSTAL_FIRE, 1)
+	inventory.add_item(Block.BlockType.CRYSTAL_WATER, 1)
 	
 	# Connect inventory UI signals
 	inventory_ui.slot_clicked.connect(_on_inventory_slot_clicked)
