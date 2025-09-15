@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(godot:*)",
+      "WebFetch(domain:godotengine.org)",
+      "Bash(git init:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
