@@ -6,6 +6,7 @@ signal chunk_generation_progress(chunks_loaded: int, total_chunks: int)
 var chunks: Dictionary = {}
 var chunk_manager: ChunkManager
 var render_distance: int = 2  # Reduced for better performance
+var underground_render_distance: int = 1  # Even more reduced underground
 var player: Node3D
 var last_player_chunk: Vector3i = Vector3i(-999, -999, -999)
 var pending_chunks: Dictionary = {}  # Track chunks being generated
@@ -186,9 +187,14 @@ func update_chunks_around_player():
 	
 	last_player_chunk = player_chunk
 	
+	# Adjust render distance based on player height (underground optimization)
+	var current_render_distance = render_distance
+	if player.global_position.y < 25:  # Underground
+		current_render_distance = underground_render_distance
+	
 	# Load new chunks
-	for x in range(-render_distance, render_distance + 1):
-		for z in range(-render_distance, render_distance + 1):
+	for x in range(-current_render_distance, current_render_distance + 1):
+		for z in range(-current_render_distance, current_render_distance + 1):
 			var chunk_pos = player_chunk + Vector3i(x, 0, z)
 			load_chunk(chunk_pos)
 	
@@ -198,8 +204,9 @@ func update_chunks_around_player():
 		var chunk = chunks[key]
 		var distance = Vector3(chunk.chunk_position).distance_to(Vector3(player_chunk))
 		
-		# Unload chunks that are too far away
-		if distance > render_distance + 1:
+		# Unload chunks that are too far away (use dynamic distance)
+		var max_distance = current_render_distance + 1
+		if distance > max_distance:
 			chunks_to_unload.append(chunk.chunk_position)
 		else:
 			# Apply frustum culling and LOD to visible chunks

@@ -152,6 +152,15 @@ Left Click: Break Block | Right Click: Place Block
 	fps_indicator.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	fps_indicator.position = Vector2(-80, 35)
 	canvas_layer.add_child(fps_indicator)
+	
+	# Performance stats
+	var perf_label = Label.new()
+	perf_label.name = "PerfStats"
+	perf_label.text = "Draw Calls: 0\nVertices: 0"
+	perf_label.add_theme_font_size_override("font_size", 12)
+	perf_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	perf_label.position = Vector2(-120, 60)
+	canvas_layer.add_child(perf_label)
 
 func _process(_delta):
 	# Update block indicator
@@ -169,6 +178,14 @@ func _process(_delta):
 	# Update FPS indicator
 	if fps_indicator:
 		fps_indicator.text = "FPS: " + str(Engine.get_frames_per_second())
+	
+	# Update performance stats
+	var perf_stats = get_node_or_null("CanvasLayer/PerfStats")
+	if perf_stats:
+		var draw_calls = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+		var vertices = Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+		var objects = Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
+		perf_stats.text = "Draw Calls: " + str(draw_calls) + "\nVertices: " + str(int(vertices)) + "\nObjects: " + str(objects)
 	
 	# Update chunks around player
 	if world and player:
