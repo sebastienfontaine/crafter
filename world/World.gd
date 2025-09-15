@@ -150,7 +150,7 @@ func set_block_at_world_position(world_pos: Vector3, block_type: Block.BlockType
 		return
 	
 	chunk.set_block(local_pos, block_type)
-	chunk.update_mesh()
+	chunk.update_mesh(true)  # true = player modified, force collision update
 	print("Mesh updated for chunk at ", chunk_pos)
 	
 	# Update neighboring chunks if on edge
@@ -173,7 +173,7 @@ func update_neighboring_chunks_if_needed(world_pos: Vector3, chunk_pos: Vector3i
 func update_chunk_at(chunk_pos: Vector3i):
 	var key = chunk_key(chunk_pos)
 	if key in chunks:
-		chunks[key].update_mesh()
+		chunks[key].update_mesh(true)  # true = player modified, force collision update
 
 func update_chunks_around_player():
 	if not player:

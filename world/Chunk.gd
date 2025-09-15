@@ -65,7 +65,7 @@ func is_position_valid(pos: Vector3i) -> bool:
 		   pos.y >= 0 and pos.y < CHUNK_HEIGHT and \
 		   pos.z >= 0 and pos.z < CHUNK_SIZE
 
-func update_mesh():
+func update_mesh(player_modified: bool = false):
 	if not is_dirty:
 		return
 	
@@ -119,7 +119,8 @@ func update_mesh():
 	# Instead, we'll use a simple box collider for the whole chunk
 	# and handle precise collision only when needed
 	if vertices.size() > 0:
-		create_optimized_collision()
+		# Force collision update if player modified the chunk
+		create_optimized_collision(player_modified)
 	
 	is_dirty = false
 
@@ -280,26 +281,28 @@ func should_draw_face(neighbor_pos: Vector3i) -> bool:
 	var neighbor_block = get_block(neighbor_pos)
 	return BlockRegistry.is_transparent(neighbor_block)
 
-func create_optimized_collision():
+func create_optimized_collision(force_update: bool = false):
 	# OPTIMIZATION: Use trimesh but only for nearby chunks
 	# Far chunks don't need collision at all
 	
 	if not mesh_instance.mesh or mesh_instance.mesh.get_surface_count() == 0:
 		return  # No collision if no mesh
 	
-	# Check distance to player for LOD collision
-	var world = get_parent()
-	if world and world.player:
-		var chunk_center = global_position + Vector3(CHUNK_SIZE/2, 0, CHUNK_SIZE/2)
-		var distance_to_player = chunk_center.distance_to(world.player.global_position)
-		
-		# Only create collision for chunks very close to player (1 chunk radius)
-		if distance_to_player > CHUNK_SIZE * 1.5:
-			# Far chunks: no collision at all (huge optimization)
-			collision_shape.shape = null
-			return
+	# If force_update is true, always create collision (used when player modifies blocks)
+	if not force_update:
+		# Check distance to player for LOD collision
+		var world = get_parent()
+		if world and world.player:
+			var chunk_center = global_position + Vector3(CHUNK_SIZE/2, 0, CHUNK_SIZE/2)
+			var distance_to_player = chunk_center.distance_to(world.player.global_position)
+			
+			# Only create collision for chunks very close to player (1 chunk radius)
+			if distance_to_player > CHUNK_SIZE * 1.5:
+				# Far chunks: no collision at all (huge optimization)
+				collision_shape.shape = null
+				return
 	
-	# Near chunks: use trimesh for accurate collision
+	# Near chunks or forced update: use trimesh for accurate collision
 	# This is expensive but necessary for gameplay
 	collision_shape.shape = mesh_instance.mesh.create_trimesh_shape()
 
