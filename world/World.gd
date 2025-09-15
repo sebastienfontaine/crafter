@@ -215,7 +215,7 @@ func update_chunks_around_player():
 			
 			# Apply simple LOD (Level of Detail) based on distance
 			if should_be_visible and chunk.mesh_instance:
-				if distance > render_distance * 0.75:
+				if distance > current_render_distance * 0.75:
 					# Far chunks: reduce visual quality
 					chunk.mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				else:
