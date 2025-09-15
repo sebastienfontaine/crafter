@@ -281,24 +281,27 @@ func should_draw_face(neighbor_pos: Vector3i) -> bool:
 	return BlockRegistry.is_transparent(neighbor_block)
 
 func create_optimized_collision():
-	# OPTIMIZATION: Use convex shapes for groups of blocks
-	# This is much faster than trimesh but still provides good collision
+	# OPTIMIZATION: Use trimesh but only for nearby chunks
+	# Far chunks don't need collision at all
 	
-	# For underground and complex geometry, we need SOME collision
-	# but we can simplify it significantly
+	if not mesh_instance.mesh or mesh_instance.mesh.get_surface_count() == 0:
+		return  # No collision if no mesh
 	
-	# Create a convex collision from visible vertices (much simpler than trimesh)
-	if mesh_instance.mesh and mesh_instance.mesh.get_surface_count() > 0:
-		# Use create_convex_shape which is MUCH faster than trimesh
-		# but still gives reasonable collision
-		collision_shape.shape = mesh_instance.mesh.create_convex_shape(true, true)
-	else:
-		# Fallback to simple box if no mesh
-		var shape = BoxShape3D.new()
-		shape.size = Vector3(CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_SIZE)
-		collision_shape.shape = shape
-		# Don't offset the collision shape - it should be at origin
-		# collision_shape.position = Vector3.ZERO  # Keep at origin!
+	# Check distance to player for LOD collision
+	var world = get_parent()
+	if world and world.player:
+		var chunk_center = global_position + Vector3(CHUNK_SIZE/2, 0, CHUNK_SIZE/2)
+		var distance_to_player = chunk_center.distance_to(world.player.global_position)
+		
+		# Only create collision for chunks very close to player (1 chunk radius)
+		if distance_to_player > CHUNK_SIZE * 1.5:
+			# Far chunks: no collision at all (huge optimization)
+			collision_shape.shape = null
+			return
+	
+	# Near chunks: use trimesh for accurate collision
+	# This is expensive but necessary for gameplay
+	collision_shape.shape = mesh_instance.mesh.create_trimesh_shape()
 
 func is_block_hidden(pos: Vector3i) -> bool:
 	# Check if a block is completely surrounded by opaque blocks

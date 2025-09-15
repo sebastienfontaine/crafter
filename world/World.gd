@@ -221,6 +221,15 @@ func update_chunks_around_player():
 				else:
 					# Near chunks: full quality
 					chunk.mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			
+			# Update collision LOD based on distance
+			if distance <= 1:  # Only chunks immediately around player need collision
+				if not chunk.collision_shape.shape:
+					# Re-create collision if it was removed
+					chunk.create_optimized_collision()
+			elif distance > 1.5 and chunk.collision_shape.shape:
+				# Remove collision from far chunks
+				chunk.collision_shape.shape = null
 	
 	for chunk_pos in chunks_to_unload:
 		unload_chunk(chunk_pos)
